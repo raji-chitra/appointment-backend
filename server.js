@@ -11,19 +11,18 @@ const app = express();
 connectDB();
 
 /* ----------------------------------------------------
-   ALLOW BOTH LOCALHOST AND RENDER FRONTEND
+   CORS — Allow Render + Localhost (FULLY WORKING)
 ---------------------------------------------------- */
-const allowedOrigins = [
-    process.env.FRONTEND_URL,        // Hosted frontend
-    'http://localhost:5173',         // Local Vite
-    'http://127.0.0.1:5173',
-].filter(Boolean);
-
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin) return callback(null, true);   // Allow mobile apps / Postman
+        if (!origin) return callback(null, true);   // Allow Postman/Mobile apps
 
-        if (allowedOrigins.includes(origin)) {
+        // Allow all Render URLs + localhost
+        if (
+            origin.includes("onrender.com") ||  // Render frontend
+            origin.includes("localhost") ||     // Local Vite
+            origin.includes("127.0.0.1")        // Alternative local
+        ) {
             return callback(null, true);
         }
 
@@ -36,16 +35,22 @@ app.use(cors({
 
 app.use(express.json());
 
-// Serve uploads folder
+/* ----------------------------------------------------
+   STATIC UPLOADS
+---------------------------------------------------- */
 app.use('/uploads', express.static('uploads'));
 
-// Routes
+/* ----------------------------------------------------
+   ROUTES
+---------------------------------------------------- */
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/appointments', require('./routes/appointment'));
 app.use('/api/doctors', require('./routes/doctors'));
 app.use('/api/admin', require('./routes/admin'));
 
-// Test route
+/* ----------------------------------------------------
+   TEST ROUTE
+---------------------------------------------------- */
 app.get('/api/test', (req, res) => {
     res.json({
         success: true,
@@ -54,7 +59,9 @@ app.get('/api/test', (req, res) => {
     });
 });
 
-// Health check
+/* ----------------------------------------------------
+   HEALTH CHECK (Render uses this)
+---------------------------------------------------- */
 app.get('/api/health', (req, res) => {
     res.json({
         success: true,
@@ -63,13 +70,19 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+/* ----------------------------------------------------
+   SERVER + CREATE DEFAULT ADMIN
+---------------------------------------------------- */
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, async () => {
     console.log(`🚀 Server running on port ${PORT}`);
 
     try {
-        const adminEmail = ((process.env.DEFAULT_ADMIN_EMAIL || 'rajalakshmi@gmail.com') + '').trim().toLowerCase();
+        const adminEmail = ((process.env.DEFAULT_ADMIN_EMAIL || 'rajalakshmi@gmail.com') + '')
+            .trim()
+            .toLowerCase();
+
         const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || '123456';
 
         if (!validator.isEmail(adminEmail)) {
@@ -85,6 +98,7 @@ app.listen(PORT, async () => {
                 password: adminPassword,
                 role: 'admin'
             });
+
             await admin.save();
             console.log('✅ Default admin created:', adminEmail);
         } else {
