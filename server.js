@@ -1,62 +1,67 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const connectDB = require('./db');
-const User = require('./models/User');
-const validator = require('validator');
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const connectDB = require("./db");
+const User = require("./models/User");
+const validator = require("validator");
 
 const app = express();
 
-// Connect DB
+// Connect to MongoDB
 connectDB();
 
 /* ----------------------------------------------------
-   FIXED CORS — Render + Localhost (FULLY WORKING)
+   SIMPLE + FIXED CORS (WORKS 100% ON RENDER)
 ---------------------------------------------------- */
+
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // Postman, mobile apps
-
-      const allowed = [
-        process.env.FRONTEND_URL,                                 // https://appointment-frontend...
-        process.env.FRONTEND_URL?.replace("https://", "http://"),
-        process.env.FRONTEND_URL?.replace("https://", "https://www."),
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-      ].filter(Boolean);
-
-      if (allowed.some(url => origin.startsWith(url))) {
-        return callback(null, true);
-      }
-
-      console.log("❌ BLOCKED CORS:", origin);
-      return callback(new Error("CORS not allowed"));
-    },
+    origin: process.env.FRONTEND_URL,   // your render frontend
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
+// Extra fallback headers for OPTIONS requests
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", process.env.FRONTEND_URL);
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
+  next();
+});
+
+// Handle OPTIONS preflight globally (important!)
+app.options("*", cors());
+
+/* ----------------------------------------------------
+   BODY PARSER
+---------------------------------------------------- */
 app.use(express.json());
 
 /* ----------------------------------------------------
    STATIC FILES
 ---------------------------------------------------- */
-app.use('/uploads', express.static('uploads'));
+app.use("/uploads", express.static("uploads"));
 
 /* ----------------------------------------------------
    ROUTES
 ---------------------------------------------------- */
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/appointments', require('./routes/appointment'));
-app.use('/api/doctors', require('./routes/doctors'));
-app.use('/api/admin', require('./routes/admin'));
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/appointments", require("./routes/appointment"));
+app.use("/api/doctors", require("./routes/doctors"));
+app.use("/api/admin", require("./routes/admin"));
 
 /* ----------------------------------------------------
    TEST ROUTES
 ---------------------------------------------------- */
-app.get('/api/test', (req, res) => {
+app.get("/api/test", (req, res) => {
   res.json({
     success: true,
     message: "Server is running!",
@@ -64,7 +69,7 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-app.get('/api/health', (req, res) => {
+app.get("/api/health", (req, res) => {
   res.json({
     success: true,
     status: "OK",
@@ -81,7 +86,9 @@ app.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
 
   try {
-    const adminEmail = ((process.env.DEFAULT_ADMIN_EMAIL || "rajalakshmi@gmail.com") + "")
+    const adminEmail = (
+      process.env.DEFAULT_ADMIN_EMAIL || "rajalakshmi@gmail.com"
+    )
       .trim()
       .toLowerCase();
 
