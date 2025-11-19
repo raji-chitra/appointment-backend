@@ -14,17 +14,14 @@ connectDB();
    ALLOW BOTH LOCALHOST AND RENDER FRONTEND
 ---------------------------------------------------- */
 const allowedOrigins = [
-    'http://localhost:5173',
+    process.env.FRONTEND_URL,        // Hosted frontend
+    'http://localhost:5173',         // Local Vite
     'http://127.0.0.1:5173',
-    'http://localhost:5174',
-    'http://127.0.0.1:5174',
-    process.env.FRONTEND_URL,     // Render frontend URL
-].filter(Boolean);  // removes undefined values
+].filter(Boolean);
 
 app.use(cors({
     origin: function (origin, callback) {
-        // allow server-to-server or tools like Postman (no origin)
-        if (!origin) return callback(null, true);
+        if (!origin) return callback(null, true);   // Allow mobile apps / Postman
 
         if (allowedOrigins.includes(origin)) {
             return callback(null, true);
@@ -57,7 +54,7 @@ app.get('/api/test', (req, res) => {
     });
 });
 
-// Health check route
+// Health check
 app.get('/api/health', (req, res) => {
     res.json({
         success: true,
@@ -71,7 +68,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, async () => {
     console.log(`🚀 Server running on port ${PORT}`);
 
-    // Ensure default admin exists
     try {
         const adminEmail = ((process.env.DEFAULT_ADMIN_EMAIL || 'rajalakshmi@gmail.com') + '').trim().toLowerCase();
         const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || '123456';
