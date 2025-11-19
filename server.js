@@ -10,19 +10,36 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
-// Middleware
+/* ----------------------------------------------------
+   ALLOW BOTH LOCALHOST AND RENDER FRONTEND
+---------------------------------------------------- */
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:5174',
+    'http://127.0.0.1:5174',
+    process.env.FRONTEND_URL,     // Render frontend URL
+].filter(Boolean);  // removes undefined values
+
 app.use(cors({
-    origin: [
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-        'http://localhost:5174',
-        'http://127.0.0.1:5174'
-    ],
-    credentials: true
+    origin: function (origin, callback) {
+        // allow server-to-server or tools like Postman (no origin)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        console.log("❌ Blocked by CORS:", origin);
+        return callback(new Error("Not allowed by CORS"));
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true,
 }));
+
 app.use(express.json());
 
-// Serve static files from uploads directory
+// Serve uploads folder
 app.use('/uploads', express.static('uploads'));
 
 // Routes
@@ -33,39 +50,52 @@ app.use('/api/admin', require('./routes/admin'));
 
 // Test route
 app.get('/api/test', (req, res) => {
-    res.json({ 
+    res.json({
         success: true,
-        message: 'Server is running!', 
-        database: 'MongoDB Connected' 
+        message: 'Server is running!',
+        database: 'MongoDB Connected'
     });
 });
 
-// Health check
+// Health check route
 app.get('/api/health', (req, res) => {
-    res.json({ 
+    res.json({
         success: true,
-        status: 'OK', 
-        timestamp: new Date().toISOString() 
+        status: 'OK',
+        timestamp: new Date().toISOString()
     });
 });
 
 const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, async () => {
     console.log(`🚀 Server running on port ${PORT}`);
+
     // Ensure default admin exists
     try {
         const adminEmail = ((process.env.DEFAULT_ADMIN_EMAIL || 'rajalakshmi@gmail.com') + '').trim().toLowerCase();
-        const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
+        const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD || '123456';
+
         if (!validator.isEmail(adminEmail)) {
             throw new Error(`Invalid DEFAULT_ADMIN_EMAIL provided: ${adminEmail}`);
         }
+
         let admin = await User.findOne({ email: adminEmail });
+
         if (!admin) {
-            admin = new User({ name: 'Admin', email: adminEmail, password: adminPassword, role: 'admin' });
+            admin = new User({
+                name: 'Admin',
+                email: adminEmail,
+                password: adminPassword,
+                role: 'admin'
+            });
             await admin.save();
-            console.log('✅ Default admin ensured:', adminEmail);
+            console.log('✅ Default admin created:', adminEmail);
+        } else {
+            console.log('ℹ Default admin already exists');
         }
+
     } catch (e) {
-        console.error('Failed to ensure default admin:', e.message);
+        console.error('❌ Failed to ensure default admin:', e.message);
     }
 });
